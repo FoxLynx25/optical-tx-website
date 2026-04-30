@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Optical Transmitter</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Optical Data Transmitter</h1>
+    <div class="version">v1.5 - 2025-02-21 08:55</div>
+
+    <div id="control-panel" class="control-panel">
+      <!-- Mode Tabs -->
+      <div class="tabs">
+        <button id="tab-profile" class="tab active">Heating Profile</button>
+        <button id="tab-text" class="tab">Engineering</button>
+      </div>
+
+      <!-- Text Mode Panel (Engineering) -->
+      <div id="panel-text" class="tab-panel hidden">
+        <div class="input-group">
+          <label for="payload-input">Message to transmit</label>
+          <textarea
+            id="payload-input"
+            placeholder="Enter text to transmit..."
+            maxlength="255"
+          >Hello</textarea>
+        </div>
+      </div>
+
+      <!-- Profile Mode Panel -->
+      <div id="panel-profile" class="tab-panel">
+        <div class="profile-section">
+          <div class="profile-header">
+            <label>Temperature Profile</label>
+            <div class="profile-actions">
+              <select id="preset-select" class="preset-select">
+                <option value="">Load preset...</option>
+                <option value="gentle">Gentle</option>
+                <option value="boost">Boost</option>
+                <option value="session">Session</option>
+              </select>
+            </div>
+          </div>
+
+          <canvas id="profile-canvas" class="profile-canvas"></canvas>
+
+          <div id="profile-info" class="profile-info">
+            3 steps | Profile: 12.0s | Payload: 11 bytes
+          </div>
+
+          <div class="step-list-header">
+            <span>Step</span>
+            <span>Temperature</span>
+            <span>Duration</span>
+            <span></span>
+          </div>
+          <div id="step-list" class="step-list">
+            <!-- Steps populated by JS -->
+          </div>
+
+          <div class="profile-buttons">
+            <button id="add-step-btn" class="btn-small">+ Add Step</button>
+            <button id="clear-profile-btn" class="btn-small btn-danger-small">Clear All</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared Controls -->
+      <div class="input-group">
+        <label for="speed-select">Transmission speed</label>
+        <select id="speed-select">
+          <option value="slow">Slow (15 bps) - 4 frames/symbol</option>
+          <option value="medium" selected>Medium (30 bps) - 2 frames/symbol</option>
+          <option value="fast">Fast (60 bps) - 1 frame/symbol</option>
+          <option value="custom">Custom...</option>
+        </select>
+      </div>
+
+      <!-- Custom Speed Control (Engineering) -->
+      <div id="custom-speed-panel" class="custom-speed-panel hidden">
+        <div class="speed-slider-row">
+          <label>Frames per symbol:</label>
+          <input type="range" id="frames-slider" min="1" max="10" value="2">
+          <input type="number" id="frames-input" min="1" max="10" value="2">
+        </div>
+        <div class="speed-info">
+          <span id="speed-hz">30.0 Hz</span>
+          <span id="speed-bps">30.0 bps</span>
+          <span id="speed-ms">33.3 ms/symbol</span>
+        </div>
+      </div>
+
+      <div id="frame-info" class="frame-info">
+        Enter a message to see frame info
+      </div>
+
+      <div class="loop-control">
+        <label class="checkbox-label">
+          <input type="checkbox" id="loop-checkbox" checked>
+          <span>Loop continuously</span>
+          <span id="loop-status" class="loop-status"></span>
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button id="transmit-btn" class="btn-primary">Transmit</button>
+        <button id="stop-btn" class="btn-danger" disabled>Stop</button>
+      </div>
+
+      <div class="button-row">
+        <button id="fullscreen-btn" class="btn-secondary">Enter Fullscreen</button>
+      </div>
+    </div>
+
+    <div id="transmit-area" class="transmit-area"></div>
+
+    <div class="status-bar">
+      <div id="status-text" class="status-text">Initializing...</div>
+      <div class="progress-container">
+        <div class="progress-track">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <span id="progress-text" class="progress-text">0/0</span>
+      </div>
+    </div>
+
+    <div class="diagnostics">
+      <h3>Transmission Diagnostics</h3>
+      <div id="diagnostics-output" class="diagnostics-output">No transmission data yet</div>
+      <button id="export-btn" class="btn-secondary" disabled>Export Diagnostics (JSON)</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js?v=23"></script>
+</body>
+</html>
