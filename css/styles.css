@@ -224,6 +224,46 @@ button:disabled {
   margin-top: 12px;
 }
 
+.timing-quality {
+  font-family: monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border-left: 4px solid;
+}
+
+.timing-quality.hidden {
+  display: none;
+}
+
+.timing-quality.ok {
+  background: rgba(39, 174, 96, 0.15);
+  border-color: #27ae60;
+  color: #2ecc71;
+}
+
+.timing-quality.warn {
+  background: rgba(243, 156, 18, 0.15);
+  border-color: #f39c12;
+  color: #f1c40f;
+}
+
+.timing-quality.fail {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.timing-quality .fault-details {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  opacity: 0.85;
+  white-space: pre;
+}
+
 /* Mobile optimizations */
 @media (max-width: 480px) {
   .container {

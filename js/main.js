@@ -124,6 +124,7 @@ class OpticalTransmitter {
       statusText: document.getElementById('status-text'),
       progressBar: document.getElementById('progress-bar'),
       progressText: document.getElementById('progress-text'),
+      timingQuality: document.getElementById('timing-quality'),
       diagnosticsOutput: document.getElementById('diagnostics-output'),
       exportBtn: document.getElementById('export-btn'),
       frameInfo: document.getElementById('frame-info'),
@@ -371,7 +372,7 @@ class OpticalTransmitter {
       const duration = (info.totalBits * this.timing.getSymbolDuration() / 1000).toFixed(2);
 
       this.elements.frameInfo.textContent =
-        `Frame: ${info.totalBits} bits (${info.preambleBits} preamble + ${info.syncBits} sync + ` +
+        `Frame: ${info.totalBits} bits (${info.startBits} start + ${info.preambleBits} preamble + ${info.syncBits} sync + ` +
         `${info.lengthBits} len + ${info.payloadBits} payload + ${info.crcBits} CRC + ${info.postambleBits} post) | ` +
         `Duration: ~${duration}s`;
     }
@@ -431,6 +432,9 @@ class OpticalTransmitter {
 
     this.isTransmitting = true;
     this.setTransmitUIState(true);
+
+    // Hide stale timing quality verdict
+    this.elements.timingQuality.classList.add('hidden');
 
     // Initialize diagnostics
     this.diagnostics.startTransmission(this.timing.getSymbolDuration(), frame.length);
@@ -501,6 +505,7 @@ class OpticalTransmitter {
       this.setTransmitUIState(false);
       this.updateLoopStatus();
       this.setStatus('Transmission aborted');
+      this.showTimingQuality();
       this.elements.diagnosticsOutput.textContent = this.diagnostics.getSummaryText();
       this.elements.exportBtn.disabled = false;
       return;
@@ -533,6 +538,7 @@ class OpticalTransmitter {
     } else {
       this.setTransmitUIState(false);
       this.setStatus('Transmission complete');
+      this.showTimingQuality();
       this.elements.diagnosticsOutput.textContent = this.diagnostics.getSummaryText();
       this.elements.exportBtn.disabled = false;
     }
@@ -597,6 +603,41 @@ class OpticalTransmitter {
     a.click();
 
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Analyze and display preamble timing quality after transmission
+   */
+  showTimingQuality() {
+    const el = this.elements.timingQuality;
+    const analysis = this.diagnostics.analyzePreambleQuality(this.timing.getSymbolDuration());
+
+    el.classList.remove('hidden', 'ok', 'warn', 'fail');
+
+    let cssClass, label;
+    if (analysis.ok === null) {
+      el.classList.add('hidden');
+      return;
+    } else if (analysis.ok) {
+      cssClass = 'ok';
+      label = '✓ PREAMBLE TIMING OK';
+    } else if (analysis.warn) {
+      cssClass = 'warn';
+      label = '⚠ PREAMBLE TIMING MARGINAL';
+    } else {
+      cssClass = 'fail';
+      label = '✗ PREAMBLE TIMING FAULT';
+    }
+
+    el.classList.add(cssClass);
+    el.textContent = `${label} — ${analysis.verdict.split('—')[1]?.trim() ?? ''}`;
+
+    if (analysis.faultDetails && analysis.faultDetails.length > 0) {
+      const details = document.createElement('div');
+      details.className = 'fault-details';
+      details.textContent = analysis.faultDetails.join('\n');
+      el.appendChild(details);
+    }
   }
 
   /**

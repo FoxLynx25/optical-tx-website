@@ -122,6 +122,8 @@ export class TimingEngine {
       const droppedFrames = Math.floor(frameDelta / this.estimatedFrameDuration) - 1;
       for (let i = 0; i < droppedFrames; i++) {
         this.onFrameDrop();
+        // Advance frameCount so subsequent symbols stay on schedule
+        this.frameCount++;
       }
     }
     this.lastFrameTime = timestamp;

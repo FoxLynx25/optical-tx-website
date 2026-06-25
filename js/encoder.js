@@ -27,6 +27,12 @@ export class Encoder {
 
     const frame = [];
 
+    // Start marker: single black bit (0) forces a white→black edge at the start
+    // of every transmission, since idle state is always white (1). Without this,
+    // the first preamble bit (1) is identical to idle and the receiver sees no
+    // transition to align on — especially critical in loop mode.
+    frame.push(0);
+
     // 1. Preamble (16 bits)
     frame.push(...Protocol.PREAMBLE);
 
@@ -61,13 +67,14 @@ export class Encoder {
   getFrameInfo(payloadBytes) {
     const payloadBits = payloadBytes.length * 8;
     return {
+      startBits: 1,
       preambleBits: Protocol.PREAMBLE.length,
       syncBits: Protocol.SYNC.length,
       lengthBits: 8,
       payloadBits: payloadBits,
       crcBits: 8,
       postambleBits: Protocol.POSTAMBLE.length,
-      totalBits: Protocol.PREAMBLE.length + Protocol.SYNC.length + 8 + payloadBits + 8 + Protocol.POSTAMBLE.length
+      totalBits: 1 + Protocol.PREAMBLE.length + Protocol.SYNC.length + 8 + payloadBits + 8 + Protocol.POSTAMBLE.length
     };
   }
 }

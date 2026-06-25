@@ -124,6 +124,56 @@ export class Diagnostics {
   }
 
   /**
+   * Analyze whether the preamble was transmitted with reliable timing.
+   * Uses inter-symbol intervals to detect frame drops and jitter that would
+   * prevent the receiver from locking on.
+   * @param {number} symbolDuration - Expected ms per symbol
+   * @returns {object} Analysis result
+   */
+  analyzePreambleQuality(symbolDuration) {
+    // Preamble occupies symbols 1..16 (symbol 0 is the start bit)
+    const PREAMBLE_OFFSET = 1;
+    const PREAMBLE_LENGTH = 16;
+    const preambleEnd = PREAMBLE_OFFSET + PREAMBLE_LENGTH;
+
+    if (this.transitions.length < preambleEnd) {
+      return { ok: null, verdict: 'Not enough symbols to analyze preamble', maxDeviationPct: 0, faults: 0 };
+    }
+
+    let maxDeviationMs = 0;
+    let faultCount = 0;
+    const faultDetails = [];
+
+    for (let i = PREAMBLE_OFFSET + 1; i < preambleEnd; i++) {
+      const interval = this.transitions[i].actual - this.transitions[i - 1].actual;
+      const deviationMs = Math.abs(interval - symbolDuration);
+      const deviationPct = (deviationMs / symbolDuration) * 100;
+
+      if (deviationMs > maxDeviationMs) maxDeviationMs = deviationMs;
+
+      if (deviationPct > 40) {
+        faultCount++;
+        faultDetails.push(`bit ${i}: ${interval.toFixed(1)}ms instead of ${symbolDuration.toFixed(1)}ms (+${deviationPct.toFixed(0)}%)`);
+      }
+    }
+
+    const maxDeviationPct = (maxDeviationMs / symbolDuration) * 100;
+    const ok = faultCount === 0 && this.frameDrops === 0;
+    const warn = !ok && faultCount === 0 && this.frameDrops <= 1 && maxDeviationPct < 40;
+
+    let verdict;
+    if (ok) {
+      verdict = `TIMING OK — max deviation ${maxDeviationPct.toFixed(1)}% of symbol period`;
+    } else if (warn) {
+      verdict = `TIMING MARGINAL — ${this.frameDrops} frame drop(s), max deviation ${maxDeviationPct.toFixed(1)}%`;
+    } else {
+      verdict = `TIMING FAULT — ${faultCount} preamble bit(s) out of range, ${this.frameDrops} frame drop(s), max deviation ${maxDeviationPct.toFixed(1)}%`;
+    }
+
+    return { ok, warn, verdict, maxDeviationPct: maxDeviationPct.toFixed(1), maxDeviationMs: maxDeviationMs.toFixed(2), faults: faultCount, faultDetails, frameDrops: this.frameDrops };
+  }
+
+  /**
    * Get a compact summary for display
    * @returns {string} Human-readable summary
    */

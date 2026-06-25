@@ -1,6 +1,6 @@
 /**
  * Protocol constants and CRC-8 implementation
- * Frame format: [Preamble 16b][Sync 4b][Length 8b][Payload Nb][CRC-8 8b][Postamble 4b]
+ * Frame format: [Start 1b][Preamble 16b][Sync 4b][Length 8b][Payload Nb][CRC-8 8b][Postamble 4b]
  */
 
 export const Protocol = {
