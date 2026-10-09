@@ -2,10 +2,12 @@
  * Main application - orchestrates the optical transmitter
  */
 
+// Keep the ?v= below in step with index.html: an unversioned import can be
+// served from cache and no longer match this file.
 import { Encoder } from './encoder.js';
-import { DisplayDriver } from './display.js';
-import { TimingEngine } from './timing.js';
-import { Diagnostics } from './diagnostics.js';
+import { DisplayDriver } from './display.js?v=27';
+import { TimingEngine } from './timing.js?v=27';
+import { Diagnostics } from './diagnostics.js?v=27';
 import { Protocol } from './protocol.js';
 import { HeatingProfile, HeatingProfileProtocol } from './heating-profile.js';
 import { ProfileEditor } from './profile-editor.js';
