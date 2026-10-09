@@ -114,32 +114,36 @@ export class TimingEngine {
     if (this.startTime === null) {
       this.startTime = timestamp;
       this.lastFrameTime = timestamp;
-    }
-
-    // Detect frame drops (frame took significantly longer than expected)
-    const frameDelta = timestamp - this.lastFrameTime;
-    if (frameDelta > this.estimatedFrameDuration * 1.5) {
-      const droppedFrames = Math.floor(frameDelta / this.estimatedFrameDuration) - 1;
-      for (let i = 0; i < droppedFrames; i++) {
-        this.onFrameDrop();
-        // Advance frameCount so subsequent symbols stay on schedule
-        this.frameCount++;
-      }
-    }
-    this.lastFrameTime = timestamp;
-
-    // Check if it's time to emit a new symbol
-    if (this.frameCount % this.framesPerSymbol === 0) {
-      if (this.currentIndex < this.symbols.length) {
-        const symbol = this.symbols[this.currentIndex];
-        const expectedTime = this.startTime + (this.currentIndex * this.framesPerSymbol * this.estimatedFrameDuration);
-
-        this.onSymbol(this.currentIndex, symbol, timestamp, expectedTime);
-        this.currentIndex++;
+    } else {
+      // Advance by the number of display frames that actually elapsed, not by
+      // the number of callbacks: two callbacks landing in the same display
+      // frame must not consume a symbol, and a missed frame must not delay
+      // every following symbol.
+      const elapsedFrames = Math.round((timestamp - this.lastFrameTime) / this.estimatedFrameDuration);
+      if (elapsedFrames >= 1) {
+        for (let i = 1; i < elapsedFrames; i++) {
+          this.onFrameDrop();
+        }
+        this.frameCount += elapsedFrames;
+        // Re-anchor on the real timestamp so calibration error never accumulates
+        this.lastFrameTime = timestamp;
       }
     }
 
-    this.frameCount++;
+    // Emit the symbol that is due on this frame. After a missed frame this may
+    // skip a symbol: that costs at most one wrong bit, whereas emitting it late
+    // would shift the rest of the frame.
+    const dueIndex = Math.min(
+      Math.floor(this.frameCount / this.framesPerSymbol),
+      this.symbols.length - 1
+    );
+    if (dueIndex >= this.currentIndex) {
+      const symbol = this.symbols[dueIndex];
+      const expectedTime = this.startTime + (dueIndex * this.framesPerSymbol * this.estimatedFrameDuration);
+
+      this.onSymbol(dueIndex, symbol, timestamp, expectedTime);
+      this.currentIndex = dueIndex + 1;
+    }
 
     // Check if complete
     if (this.currentIndex >= this.symbols.length) {
