@@ -29,6 +29,7 @@ class OpticalTransmitter {
     this.loopEnabled = true;
     this.loopCount = 0;
     this.loopGapMs = 100; // 100ms gap between transmissions (brief white flash)
+    this.loopStats = this.newLoopStats();
 
     // UI elements
     this.elements = {};
@@ -410,6 +411,7 @@ class OpticalTransmitter {
     // Reset loop count on fresh start
     if (this.loopCount === 0) {
       this.updateLoopStatus();
+      this.loopStats = this.newLoopStats();
     }
 
     // Get payload bytes
@@ -444,6 +446,7 @@ class OpticalTransmitter {
     this.updateProgress(0, frame.length);
 
     // Start transmission
+    this.currentFrameDropSymbols = [];
     this.timing.start(frame, {
       onSymbol: (index, bit, actualTime, expectedTime) => {
         this.display.setState(bit);
@@ -459,6 +462,7 @@ class OpticalTransmitter {
       },
       onFrameDrop: () => {
         this.diagnostics.recordFrameDrop();
+        this.currentFrameDropSymbols.push(this.timing.currentIndex);
       }
     });
   }
@@ -506,10 +510,12 @@ class OpticalTransmitter {
       this.updateLoopStatus();
       this.setStatus('Transmission aborted');
       this.showTimingQuality();
-      this.elements.diagnosticsOutput.textContent = this.diagnostics.getSummaryText();
+      this.elements.diagnosticsOutput.textContent = this.getDiagnosticsText();
       this.elements.exportBtn.disabled = false;
       return;
     }
+
+    this.recordLoopStats();
 
     // Check loop mode - use fresh element reference
     const loopCheckbox = document.getElementById('loop-checkbox');
@@ -520,6 +526,8 @@ class OpticalTransmitter {
       this.loopCount++;
       this.updateLoopStatus();
       this.setStatus(`Looping... (${this.loopCount} sent)`);
+      // Updated during the white gap only, never while symbols are on screen
+      this.elements.diagnosticsOutput.textContent = this.getLoopStatsText();
 
       setTimeout(() => {
         // Re-check checkbox state after the gap
@@ -539,9 +547,55 @@ class OpticalTransmitter {
       this.setTransmitUIState(false);
       this.setStatus('Transmission complete');
       this.showTimingQuality();
-      this.elements.diagnosticsOutput.textContent = this.diagnostics.getSummaryText();
+      this.elements.diagnosticsOutput.textContent = this.getDiagnosticsText();
       this.elements.exportBtn.disabled = false;
     }
+  }
+
+  /**
+   * Fresh counters for a run of transmissions
+   */
+  newLoopStats() {
+    return { framesSent: 0, framesWithDrops: 0, totalDrops: 0, dropLog: [] };
+  }
+
+  /**
+   * Add the transmission that just completed to the run counters
+   */
+  recordLoopStats() {
+    const stats = this.loopStats;
+    stats.framesSent++;
+    const symbols = this.currentFrameDropSymbols || [];
+    if (symbols.length > 0) {
+      stats.framesWithDrops++;
+      stats.totalDrops += symbols.length;
+      stats.dropLog.push({ frame: stats.framesSent, symbols });
+    }
+  }
+
+  /**
+   * Run counters as text: how many frames were sent and how many of them
+   * had a display frame skipped (each one is a likely CRC error)
+   * @returns {string} Human-readable summary
+   */
+  getLoopStatsText() {
+    const stats = this.loopStats;
+    const lines = [
+      `Frames sent: ${stats.framesSent}`,
+      `Frames with dropped display frames: ${stats.framesWithDrops} (${stats.totalDrops} drops)`
+    ];
+    for (const entry of stats.dropLog.slice(-5)) {
+      lines.push(`  frame #${entry.frame}: drop at symbol ${entry.symbols.join(', ')}`);
+    }
+    return lines.join('\n');
+  }
+
+  /**
+   * Run counters followed by the detail of the last transmission
+   * @returns {string} Human-readable summary
+   */
+  getDiagnosticsText() {
+    return `${this.getLoopStatsText()}\n\nLast frame:\n${this.diagnostics.getSummaryText()}`;
   }
 
   /**
@@ -583,6 +637,7 @@ class OpticalTransmitter {
   exportDiagnostics() {
     const exportData = {
       ...JSON.parse(this.diagnostics.exportJSON()),
+      loopStats: this.loopStats,
       mode: this.mode
     };
 
