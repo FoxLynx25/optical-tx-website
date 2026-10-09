@@ -166,6 +166,12 @@ class OpticalTransmitter {
     this.elements.framesInput.addEventListener('change', () => this.onFramesInputChange());
 
     // Loop mode
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.isTransmitting) {
+        this.display.keepAwake();
+      }
+    });
+
     this.elements.loopCheckbox.addEventListener('change', (e) => {
       this.loopEnabled = e.target.checked;
     });
@@ -414,6 +420,9 @@ class OpticalTransmitter {
       this.loopStats = this.newLoopStats();
     }
 
+    // A screen that dims or locks mid-frame corrupts the transmission
+    this.display.keepAwake();
+
     // Get payload bytes
     let payloadBytes;
     try {
@@ -471,6 +480,9 @@ class OpticalTransmitter {
    * Set UI state during transmission
    */
   setTransmitUIState(transmitting) {
+    if (!transmitting && !this.display.checkFullscreen()) {
+      this.display.allowSleep();
+    }
     this.elements.transmitBtn.disabled = transmitting;
     this.elements.stopBtn.disabled = !transmitting;
     this.elements.speedSelect.disabled = transmitting;
@@ -581,6 +593,7 @@ class OpticalTransmitter {
   getLoopStatsText() {
     const stats = this.loopStats;
     const lines = [
+      `Screen wake lock: ${this.display.wakeLock ? 'held' : 'NOT held (screen may dim or lock)'}`,
       `Frames sent: ${stats.framesSent}`,
       `Frames with dropped display frames: ${stats.framesWithDrops} (${stats.totalDrops} drops)`
     ];

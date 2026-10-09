@@ -7,6 +7,7 @@ export class DisplayDriver {
     this.element = element;
     this.currentState = null; // null = unknown, 0 = black, 1 = white
     this.isFullscreen = false;
+    this.wakeLock = null;
   }
 
   /**
@@ -56,18 +57,48 @@ export class DisplayDriver {
       this.isFullscreen = true;
 
       // Request wake lock to prevent screen dimming
-      if ('wakeLock' in navigator) {
-        try {
-          await navigator.wakeLock.request('screen');
-        } catch (e) {
-          console.warn('Wake lock not available:', e);
-        }
-      }
+      await this.keepAwake();
 
       return true;
     } catch (e) {
       console.error('Fullscreen request failed:', e);
       return false;
+    }
+  }
+
+  /**
+   * Keep the screen awake (no auto-dim, no auto-lock). The browser drops the
+   * lock whenever the page is hidden, so call again when it becomes visible.
+   * @returns {Promise<boolean>} Whether the wake lock is held
+   */
+  async keepAwake() {
+    if (this.wakeLock) return true;
+    if (!('wakeLock' in navigator)) return false;
+    try {
+      const lock = await navigator.wakeLock.request('screen');
+      lock.addEventListener('release', () => {
+        if (this.wakeLock === lock) this.wakeLock = null;
+      });
+      this.wakeLock = lock;
+      return true;
+    } catch (e) {
+      console.warn('Wake lock not available:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Let the screen dim and lock again
+   */
+  async allowSleep() {
+    const lock = this.wakeLock;
+    this.wakeLock = null;
+    if (lock) {
+      try {
+        await lock.release();
+      } catch (e) {
+        console.warn('Wake lock release failed:', e);
+      }
     }
   }
 
